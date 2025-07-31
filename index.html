@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <title>Dodge the Blocks – Level Mode</title>
+    <style>
+        body {
+            margin: 0;
+            background: black;
+            overflow: hidden;
+            font-family: sans-serif;
+            color: white;
+        }
+
+        #scoreboard {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            font-size: 20px;
+            z-index: 2;
+        }
+
+        #levelMessage {
+            position: absolute;
+            top: 40%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 36px;
+            background-color: rgba(0, 0, 0, 0.7);
+            padding: 20px 40px;
+            border: 2px solid white;
+            display: none;
+            z-index: 5;
+        }
+    </style>
+</head>
+
+<body>
+    <div id="scoreboard">
+        Score: <span id="score">0</span><br />
+        Level: <span id="level">1</span>
+    </div>
+    <div id="levelMessage">Level 1<br>Press any key to start</div>
+    <canvas id="gameCanvas"></canvas>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+
+        const scoreDisplay = document.getElementById('score');
+        const levelDisplay = document.getElementById('level');
+        const levelMessage = document.getElementById('levelMessage');
+
+        let player = {
+            x: canvas.width / 2 - 20,
+            y: canvas.height - 60,
+            size: 40,
+            speed: 6
+        };
+
+        let blocks = [];
+        let keys = {};
+        let score = 0;
+        let level = 1;
+        let nextLevelScore = 500;
+        let blockSpawnInterval = 600;
+        let blockSpeedMultiplier = 1.0;
+        let gamePaused = true;
+        let gameOver = false;
+        let spawnInterval;
+
+        document.addEventListener('keydown', e => {
+            keys[e.key] = true;
+            if (gamePaused && !gameOver) {
+                startLevel();
+            }
+        });
+
+        document.addEventListener('keyup', e => keys[e.key] = false);
+
+        function startLevel() {
+            levelMessage.style.display = 'none';
+            gamePaused = false;
+            spawnInterval = setInterval(spawnBlock, blockSpawnInterval);
+        }
+
+        function showLevelMessage() {
+            gamePaused = true;
+            levelMessage.innerHTML = `Level ${level}<br>Press any key to start`;
+            levelMessage.style.display = 'block';
+        }
+
+        function spawnBlock() {
+            const size = Math.random() * 30 + 20;
+            blocks.push({
+                x: Math.random() * (canvas.width - size),
+                y: -size,
+                size: size,
+                speed: (Math.random() * 2 + 2) * blockSpeedMultiplier
+            });
+        }
+
+        function nextLevel() {
+            level++;
+            blockSpeedMultiplier += 0.3;
+            blockSpawnInterval = Math.max(200, blockSpawnInterval - 80);
+            nextLevelScore += 500;
+
+            levelDisplay.textContent = level;
+            clearInterval(spawnInterval);
+            showLevelMessage();
+        }
+
+        function update() {
+            if (gamePaused || gameOver) return;
+
+            // Player movement
+            if (keys['ArrowLeft']) player.x -= player.speed;
+            if (keys['ArrowRight']) player.x += player.speed;
+            player.x = Math.max(0, Math.min(canvas.width - player.size, player.x));
+
+            // Update blocks
+            for (let block of blocks) {
+                block.y += block.speed;
+
+                // Collision check
+                if (
+                    block.x < player.x + player.size &&
+                    block.x + block.size > player.x &&
+                    block.y < player.y + player.size &&
+                    block.y + block.size > player.y
+                ) {
+                    gameOver = true;
+                    clearInterval(spawnInterval);
+                    alert("💥 Game Over!\nScore: " + score + "\nLevel Reached: " + level);
+                    location.reload();
+                }
+            }
+
+            blocks = blocks.filter(block => block.y < canvas.height);
+
+            // Increase score
+            score++;
+            scoreDisplay.textContent = score;
+
+            // Check level up
+            if (score >= nextLevelScore) {
+                nextLevel();
+            }
+        }
+
+        function draw() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // Player
+            ctx.fillStyle = 'lime';
+            ctx.fillRect(player.x, player.y, player.size, player.size);
+
+            // Blocks
+            ctx.fillStyle = 'red';
+            for (let block of blocks) {
+                ctx.fillRect(block.x, block.y, block.size, block.size);
+            }
+        }
+
+        function gameLoop() {
+            update();
+            draw();
+            requestAnimationFrame(gameLoop);
+        }
+
+        // Initial level screen
+        showLevelMessage();
+        gameLoop();
+    </script>
+</body>
+
+</html>
